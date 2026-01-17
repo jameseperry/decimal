@@ -1,0 +1,76 @@
+use decimal::{Decimal, RoundingMode};
+
+#[test]
+fn convert_from_signed() {
+    let value = Decimal::<2>::try_from(12_i64).unwrap();
+    assert_eq!(value.to_string(), "12.00");
+
+    let value = Decimal::<3>::try_from(-7_i32).unwrap();
+    assert_eq!(value.to_string(), "-7.000");
+}
+
+#[test]
+fn convert_from_unsigned() {
+    let value = Decimal::<1>::try_from(5_u8).unwrap();
+    assert_eq!(value.to_string(), "5.0");
+}
+
+#[test]
+fn convert_overflow() {
+    assert!(Decimal::<2>::try_from(i64::MAX).is_err());
+    assert!(Decimal::<18>::try_from(10_i64).is_err());
+    assert!(Decimal::<2>::try_from(u128::MAX).is_err());
+}
+
+#[test]
+fn convert_scale_exact() {
+    let value = "1.23".parse::<Decimal<2>>().unwrap();
+    let up = value.try_rescale::<4>().unwrap();
+    assert_eq!(up.to_string(), "1.2300");
+
+    let down = up.try_rescale::<2>().unwrap();
+    assert_eq!(down.to_string(), "1.23");
+}
+
+#[test]
+fn convert_scale_inexact() {
+    let value = "1.234".parse::<Decimal<3>>().unwrap();
+    assert!(value.try_rescale::<2>().is_err());
+}
+
+#[test]
+fn rescale_truncate() {
+    let value = "1.239".parse::<Decimal<3>>().unwrap();
+    let down = value.rescale::<2>(RoundingMode::Truncate).unwrap();
+    assert_eq!(down.to_string(), "1.23");
+
+    let value = "-1.239".parse::<Decimal<3>>().unwrap();
+    let down = value.rescale::<2>(RoundingMode::Truncate).unwrap();
+    assert_eq!(down.to_string(), "-1.23");
+}
+
+#[test]
+fn rescale_half_up() {
+    let value = "1.235".parse::<Decimal<3>>().unwrap();
+    let down = value.rescale::<2>(RoundingMode::HalfUp).unwrap();
+    assert_eq!(down.to_string(), "1.24");
+
+    let value = "-1.235".parse::<Decimal<3>>().unwrap();
+    let down = value.rescale::<2>(RoundingMode::HalfUp).unwrap();
+    assert_eq!(down.to_string(), "-1.24");
+}
+
+#[test]
+fn rescale_half_even() {
+    let value = "1.245".parse::<Decimal<3>>().unwrap();
+    let down = value.rescale::<2>(RoundingMode::HalfEven).unwrap();
+    assert_eq!(down.to_string(), "1.24");
+
+    let value = "1.255".parse::<Decimal<3>>().unwrap();
+    let down = value.rescale::<2>(RoundingMode::HalfEven).unwrap();
+    assert_eq!(down.to_string(), "1.26");
+
+    let value = "-1.245".parse::<Decimal<3>>().unwrap();
+    let down = value.rescale::<2>(RoundingMode::HalfEven).unwrap();
+    assert_eq!(down.to_string(), "-1.24");
+}
