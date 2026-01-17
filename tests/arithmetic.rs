@@ -1,4 +1,4 @@
-use decimal::Decimal;
+use decimal::{Decimal, RoundingMode};
 
 #[test]
 fn arithmetic_smoke() {
@@ -31,4 +31,43 @@ fn arithmetic_overflow_panics() {
     let max = "92233720368547758.07".parse::<Decimal<2>>().unwrap();
     let one = "0.01".parse::<Decimal<2>>().unwrap();
     let _ = max + one;
+}
+
+#[test]
+fn multiply_exact_scale() {
+    let amount = "10.00".parse::<Decimal<2>>().unwrap();
+    let rate = "0.0125".parse::<Decimal<4>>().unwrap();
+    let value = amount
+        .mul::<4, 6>(rate, RoundingMode::Truncate)
+        .unwrap();
+    assert_eq!(value.to_string(), "0.125000");
+}
+
+#[test]
+fn multiply_rounding_modes() {
+    let amount = "10.00".parse::<Decimal<2>>().unwrap();
+    let rate = "0.0125".parse::<Decimal<4>>().unwrap();
+
+    let truncate = amount
+        .mul::<4, 2>(rate, RoundingMode::Truncate)
+        .unwrap();
+    assert_eq!(truncate.to_string(), "0.12");
+
+    let half_up = amount
+        .mul::<4, 2>(rate, RoundingMode::HalfUp)
+        .unwrap();
+    assert_eq!(half_up.to_string(), "0.13");
+
+    let half_even = amount
+        .mul::<4, 2>(rate, RoundingMode::HalfEven)
+        .unwrap();
+    assert_eq!(half_even.to_string(), "0.12");
+}
+
+#[test]
+fn multiply_rate_helper() {
+    let amount = "10.00".parse::<Decimal<2>>().unwrap();
+    let rate = "0.0125".parse::<Decimal<4>>().unwrap();
+    let value = amount.mul_rate::<4>(rate, RoundingMode::HalfUp).unwrap();
+    assert_eq!(value.to_string(), "0.13");
 }

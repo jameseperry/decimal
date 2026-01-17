@@ -1,6 +1,6 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
-use crate::decimal::Decimal;
+use crate::decimal::{Decimal, DecimalError, RoundingMode};
 
 impl<const SCALE: u32> Add for Decimal<SCALE> {
     type Output = Self;
@@ -23,6 +23,77 @@ impl<const SCALE: u32> Decimal<SCALE> {
         self.minor_units
             .checked_sub(rhs.minor_units)
             .map(|minor_units| Self { minor_units })
+    }
+
+    pub fn mul<const RHS: u32, const OUT: u32>(
+        self,
+        rhs: Decimal<RHS>,
+        mode: RoundingMode,
+    ) -> Result<Decimal<OUT>, DecimalError> {
+        let product = (self.minor_units as i128)
+            .checked_mul(rhs.minor_units as i128)
+            .ok_or(DecimalError::Overflow)?;
+        let in_scale = SCALE + RHS;
+
+        if OUT == in_scale {
+            let minor_units = i64::try_from(product).map_err(|_| DecimalError::Overflow)?;
+            return Ok(Decimal { minor_units });
+        }
+
+        if OUT > in_scale {
+            let factor = 10_i128.pow(OUT - in_scale);
+            let scaled = product
+                .checked_mul(factor)
+                .ok_or(DecimalError::Overflow)?;
+            let minor_units = i64::try_from(scaled).map_err(|_| DecimalError::Overflow)?;
+            return Ok(Decimal { minor_units });
+        }
+
+        let factor = 10_i128.pow(in_scale - OUT);
+        let base = product / factor;
+        let rem = product % factor;
+        if rem == 0 {
+            let minor_units = i64::try_from(base).map_err(|_| DecimalError::Overflow)?;
+            return Ok(Decimal { minor_units });
+        }
+
+        let abs_rem = rem.abs();
+        let abs_factor = factor.abs();
+        let should_round = match mode {
+            RoundingMode::Truncate => false,
+            RoundingMode::HalfUp => abs_rem * 2 >= abs_factor,
+            RoundingMode::HalfEven => {
+                let twice = abs_rem * 2;
+                if twice > abs_factor {
+                    true
+                } else if twice < abs_factor {
+                    false
+                } else {
+                    base % 2 != 0
+                }
+            }
+        };
+
+        let rounded = if should_round {
+            if product.is_negative() {
+                base.checked_sub(1).ok_or(DecimalError::Overflow)?
+            } else {
+                base.checked_add(1).ok_or(DecimalError::Overflow)?
+            }
+        } else {
+            base
+        };
+
+        let minor_units = i64::try_from(rounded).map_err(|_| DecimalError::Overflow)?;
+        Ok(Decimal { minor_units })
+    }
+
+    pub fn mul_rate<const RATE: u32>(
+        self,
+        rate: Decimal<RATE>,
+        mode: RoundingMode,
+    ) -> Result<Self, DecimalError> {
+        self.mul::<RATE, SCALE>(rate, mode)
     }
 }
 
