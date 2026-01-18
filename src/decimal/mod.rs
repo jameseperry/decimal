@@ -3,6 +3,7 @@ mod error;
 mod arithmetic;
 mod display;
 mod parsing;
+mod defaults;
 
 #[allow(dead_code)]
 const MAX_SCALE: u32 = 18;

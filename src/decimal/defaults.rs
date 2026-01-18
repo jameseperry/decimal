@@ -1,4 +1,4 @@
-use crate::decimal::{Decimal, DecimalError, RoundingMode};
+use crate::decimal::Decimal;
 
 impl<const SCALE: u32> Decimal<SCALE> {
     pub fn zero() -> Self {
