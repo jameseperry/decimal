@@ -95,6 +95,70 @@ impl<const SCALE: u32> Decimal<SCALE> {
     ) -> Result<Self, DecimalError> {
         self.mul::<RATE, SCALE>(rate, mode)
     }
+
+    pub fn div<const RHS: u32, const OUT: u32>(
+        self,
+        rhs: Decimal<RHS>,
+        mode: RoundingMode,
+    ) -> Result<Decimal<OUT>, DecimalError> {
+        if rhs.minor_units == 0 {
+            return Err(DecimalError::DivisionByZero);
+        }
+
+        let numer_factor = 10_i128.pow(RHS + OUT);
+        let denom_factor = 10_i128.pow(SCALE);
+        let numerator = (self.minor_units as i128)
+            .checked_mul(numer_factor)
+            .ok_or(DecimalError::Overflow)?;
+        let denominator = (rhs.minor_units as i128)
+            .checked_mul(denom_factor)
+            .ok_or(DecimalError::Overflow)?;
+
+        let base = numerator / denominator;
+        let rem = numerator % denominator;
+        if rem == 0 {
+            let minor_units = i64::try_from(base).map_err(|_| DecimalError::Overflow)?;
+            return Ok(Decimal { minor_units });
+        }
+
+        let abs_rem = rem.abs();
+        let abs_den = denominator.abs();
+        let should_round = match mode {
+            RoundingMode::Truncate => false,
+            RoundingMode::HalfUp => abs_rem * 2 >= abs_den,
+            RoundingMode::HalfEven => {
+                let twice = abs_rem * 2;
+                if twice > abs_den {
+                    true
+                } else if twice < abs_den {
+                    false
+                } else {
+                    base % 2 != 0
+                }
+            }
+        };
+
+        let rounded = if should_round {
+            if (numerator < 0) ^ (denominator < 0) {
+                base.checked_sub(1).ok_or(DecimalError::Overflow)?
+            } else {
+                base.checked_add(1).ok_or(DecimalError::Overflow)?
+            }
+        } else {
+            base
+        };
+
+        let minor_units = i64::try_from(rounded).map_err(|_| DecimalError::Overflow)?;
+        Ok(Decimal { minor_units })
+    }
+
+    pub fn div_rate<const RATE: u32>(
+        self,
+        rate: Decimal<RATE>,
+        mode: RoundingMode,
+    ) -> Result<Self, DecimalError> {
+        self.div::<RATE, SCALE>(rate, mode)
+    }
 }
 
 impl<const SCALE: u32> Sub for Decimal<SCALE> {

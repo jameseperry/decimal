@@ -1,4 +1,4 @@
-use decimal::{Decimal, RoundingMode};
+use decimal::{Decimal, DecimalError, RoundingMode};
 
 #[test]
 fn convert_from_signed() {
@@ -73,4 +73,51 @@ fn rescale_half_even() {
     let value = "-1.245".parse::<Decimal<3>>().unwrap();
     let down = value.rescale::<2>(RoundingMode::HalfEven).unwrap();
     assert_eq!(down.to_string(), "-1.24");
+}
+
+#[test]
+fn convert_to_f64() {
+    let value = "1.25".parse::<Decimal<2>>().unwrap();
+    let as_f64 = value.to_f64();
+    assert!((as_f64 - 1.25).abs() < 1e-12);
+}
+
+#[test]
+fn convert_from_f64_rounding() {
+    let value = Decimal::<2>::from_f64(1.125, RoundingMode::HalfUp).unwrap();
+    assert_eq!(value.to_string(), "1.13");
+
+    let value = Decimal::<2>::from_f64(1.125, RoundingMode::HalfEven).unwrap();
+    assert_eq!(value.to_string(), "1.12");
+}
+
+#[test]
+fn convert_from_f64_invalid() {
+    assert_eq!(
+        Decimal::<2>::from_f64(f64::NAN, RoundingMode::Truncate).unwrap_err(),
+        DecimalError::Invalid
+    );
+    assert_eq!(
+        Decimal::<2>::from_f64(f64::INFINITY, RoundingMode::Truncate).unwrap_err(),
+        DecimalError::Invalid
+    );
+    assert_eq!(
+        Decimal::<2>::from_f64(f64::NEG_INFINITY, RoundingMode::Truncate).unwrap_err(),
+        DecimalError::Invalid
+    );
+}
+
+#[test]
+fn convert_from_f64_truncate_and_negative() {
+    let value = Decimal::<3>::from_f64(2.9999, RoundingMode::Truncate).unwrap();
+    assert_eq!(value.to_string(), "2.999");
+
+    let value = Decimal::<2>::from_f64(-1.235, RoundingMode::HalfUp).unwrap();
+    assert_eq!(value.to_string(), "-1.24");
+}
+
+#[test]
+fn convert_from_f64_overflow() {
+    let err = Decimal::<2>::from_f64(1e30, RoundingMode::HalfUp).unwrap_err();
+    assert_eq!(err, DecimalError::Overflow);
 }

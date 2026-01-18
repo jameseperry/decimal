@@ -7,6 +7,57 @@ pub enum RoundingMode {
     HalfEven,
 }
 
+impl<const SCALE: u32> Decimal<SCALE> {
+    pub fn to_f64(self) -> f64 {
+        let scale = 10_f64.powi(SCALE as i32);
+        (self.minor_units as f64) / scale
+    }
+
+    pub fn from_f64(value: f64, mode: RoundingMode) -> Result<Self, DecimalError> {
+        if !value.is_finite() {
+            return Err(DecimalError::Invalid);
+        }
+
+        let scale = 10_f64.powi(SCALE as i32);
+        let scaled = value * scale;
+        let abs = scaled.abs();
+
+        let rounded_abs = match mode {
+            RoundingMode::Truncate => abs.trunc(),
+            RoundingMode::HalfUp => abs.round(),
+            RoundingMode::HalfEven => {
+                let floor = abs.floor();
+                let frac = abs - floor;
+                let tie = (frac - 0.5).abs() <= 1e-12;
+                if tie {
+                    if (floor as i128) % 2 == 0 {
+                        floor
+                    } else {
+                        floor + 1.0
+                    }
+                } else if frac < 0.5 {
+                    floor
+                } else {
+                    floor + 1.0
+                }
+            }
+        };
+
+        if rounded_abs > i64::MAX as f64 {
+            return Err(DecimalError::Overflow);
+        }
+
+        let signed = if scaled.is_sign_negative() {
+            -(rounded_abs as i64)
+        } else {
+            rounded_abs as i64
+        };
+        Ok(Self {
+            minor_units: signed,
+        })
+    }
+}
+
 impl<const FROM: u32> Decimal<FROM> {
     pub fn try_rescale<const TO: u32>(self) -> Result<Decimal<TO>, DecimalError> {
         if FROM == TO {

@@ -5,6 +5,7 @@ pub enum DecimalError {
     Empty,
     Invalid,
     TooManyFractionalDigits { provided: usize, allowed: usize },
+    DivisionByZero,
     Overflow,
 }
 
@@ -20,6 +21,7 @@ impl fmt::Display for DecimalError {
                     provided, allowed
                 )
             }
+            DecimalError::DivisionByZero => write!(f, "division by zero"),
             DecimalError::Overflow => write!(f, "value out of range"),
         }
     }
