@@ -25,6 +25,10 @@ impl<T: DecimalInt, const SCALE: u32> Decimal<T, SCALE> {
             .map(|minor_units| Self { minor_units })
     }
 
+    pub fn is_zero(&self) -> bool {
+        self.minor_units == T::try_from_i128(0).unwrap_or_else(|| unreachable!())
+    }
+
     pub fn mul_rescale<const RHS: u32, const OUT: u32>(
         self,
         rhs: Decimal<T, RHS>,

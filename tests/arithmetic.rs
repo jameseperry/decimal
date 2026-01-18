@@ -42,6 +42,19 @@ fn arithmetic_overflow_no_panic_i128() {
 }
 
 #[test]
+fn zero_checks() {
+    let zero_i64 = Decimal::<i64, 2>::zero();
+    assert!(zero_i64.is_zero());
+    let nonzero_i64 = "0.01".parse::<Decimal<i64, 2>>().unwrap();
+    assert!(!nonzero_i64.is_zero());
+
+    let zero_i128 = Decimal::<i128, 2>::zero();
+    assert!(zero_i128.is_zero());
+    let nonzero_i128 = "0.01".parse::<Decimal<i128, 2>>().unwrap();
+    assert!(!nonzero_i128.is_zero());
+}
+
+#[test]
 fn arithmetic_negative_values() {
     let a = "-1.25".parse::<Decimal<i64, 2>>().unwrap();
     let b = "0.75".parse::<Decimal<i64, 2>>().unwrap();
