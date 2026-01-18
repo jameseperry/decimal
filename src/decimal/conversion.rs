@@ -1,4 +1,4 @@
-use crate::decimal::{Decimal, DecimalError};
+use crate::decimal::{Decimal, DecimalError, DecimalInt};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RoundingMode {
@@ -7,10 +7,10 @@ pub enum RoundingMode {
     HalfEven,
 }
 
-impl<const SCALE: u32> Decimal<SCALE> {
+impl<T: DecimalInt, const SCALE: u32> Decimal<T, SCALE> {
     pub fn to_f64(self) -> f64 {
         let scale = 10_f64.powi(SCALE as i32);
-        (self.minor_units as f64) / scale
+        (self.minor_units.to_i128() as f64) / scale
     }
 
     pub fn from_f64(value: f64, mode: RoundingMode) -> Result<Self, DecimalError> {
@@ -43,23 +43,21 @@ impl<const SCALE: u32> Decimal<SCALE> {
             }
         };
 
-        if rounded_abs > i64::MAX as f64 {
+        if rounded_abs > i128::MAX as f64 {
             return Err(DecimalError::Overflow);
         }
 
         let signed = if scaled.is_sign_negative() {
-            -(rounded_abs as i64)
+            -(rounded_abs as i128)
         } else {
-            rounded_abs as i64
+            rounded_abs as i128
         };
-        Ok(Self {
-            minor_units: signed,
-        })
+        Self::from_i128(signed)
     }
 }
 
-impl<const FROM: u32> Decimal<FROM> {
-    pub fn try_rescale<const TO: u32>(self) -> Result<Decimal<TO>, DecimalError> {
+impl<T: DecimalInt, const FROM: u32> Decimal<T, FROM> {
+    pub fn try_rescale<const TO: u32>(self) -> Result<Decimal<T, TO>, DecimalError> {
         if FROM == TO {
             return Ok(Decimal {
                 minor_units: self.minor_units,
@@ -67,24 +65,27 @@ impl<const FROM: u32> Decimal<FROM> {
         }
 
         if TO > FROM {
-            let factor = 10_i64.pow(TO - FROM);
+            let factor = 10_i128.pow(TO - FROM);
             let minor_units = self
                 .minor_units
+                .to_i128()
                 .checked_mul(factor)
                 .ok_or(DecimalError::Overflow)?;
-            return Ok(Decimal { minor_units });
+            return Decimal::<T, TO>::from_i128(minor_units);
         }
 
-        let factor = 10_i64.pow(FROM - TO);
-        if self.minor_units % factor != 0 {
+        let factor = 10_i128.pow(FROM - TO);
+        let minor_units = self.minor_units.to_i128();
+        if minor_units % factor != 0 {
             return Err(DecimalError::Invalid);
         }
-        Ok(Decimal {
-            minor_units: self.minor_units / factor,
-        })
+        Decimal::<T, TO>::from_i128(minor_units / factor)
     }
 
-    pub fn rescale<const TO: u32>(self, mode: RoundingMode) -> Result<Decimal<TO>, DecimalError> {
+    pub fn rescale<const TO: u32>(
+        self,
+        mode: RoundingMode,
+    ) -> Result<Decimal<T, TO>, DecimalError> {
         if FROM == TO {
             return Ok(Decimal {
                 minor_units: self.minor_units,
@@ -92,21 +93,21 @@ impl<const FROM: u32> Decimal<FROM> {
         }
 
         if TO > FROM {
-            let factor = 10_i64.pow(TO - FROM);
+            let factor = 10_i128.pow(TO - FROM);
             let minor_units = self
                 .minor_units
+                .to_i128()
                 .checked_mul(factor)
                 .ok_or(DecimalError::Overflow)?;
-            return Ok(Decimal { minor_units });
+            return Decimal::<T, TO>::from_i128(minor_units);
         }
 
-        let factor = 10_i64.pow(FROM - TO);
-        let base = self.minor_units / factor;
-        let rem = self.minor_units % factor;
+        let factor = 10_i128.pow(FROM - TO);
+        let minor_units = self.minor_units.to_i128();
+        let base = minor_units / factor;
+        let rem = minor_units % factor;
         if rem == 0 {
-            return Ok(Decimal {
-                minor_units: base,
-            });
+            return Decimal::<T, TO>::from_i128(base);
         }
 
         let abs_rem = rem.abs();
@@ -127,33 +128,30 @@ impl<const FROM: u32> Decimal<FROM> {
         };
 
         if !should_round {
-            return Ok(Decimal {
-                minor_units: base,
-            });
+            return Decimal::<T, TO>::from_i128(base);
         }
 
-        let adjusted = if self.minor_units.is_negative() {
+        let adjusted = if minor_units.is_negative() {
             base.checked_sub(1)
         } else {
             base.checked_add(1)
         }
         .ok_or(DecimalError::Overflow)?;
 
-        Ok(Decimal {
-            minor_units: adjusted,
-        })
+        Decimal::<T, TO>::from_i128(adjusted)
     }
 }
 
 macro_rules! impl_try_from_signed {
     ($($t:ty),+ $(,)?) => {
         $(
-            impl<const SCALE: u32> TryFrom<$t> for Decimal<SCALE> {
+            impl<T: DecimalInt, const SCALE: u32> TryFrom<$t> for Decimal<T, SCALE> {
                 type Error = DecimalError;
 
                 fn try_from(value: $t) -> Result<Self, Self::Error> {
-                    let value_i64: i64 = value.try_into().map_err(|_| DecimalError::Overflow)?;
-                    Self::checked_from_i64(value_i64)
+                    let value_i128: i128 =
+                        value.try_into().map_err(|_| DecimalError::Overflow)?;
+                    Self::checked_from_i128(value_i128)
                 }
             }
         )+
@@ -163,12 +161,13 @@ macro_rules! impl_try_from_signed {
 macro_rules! impl_try_from_unsigned {
     ($($t:ty),+ $(,)?) => {
         $(
-            impl<const SCALE: u32> TryFrom<$t> for Decimal<SCALE> {
+            impl<T: DecimalInt, const SCALE: u32> TryFrom<$t> for Decimal<T, SCALE> {
                 type Error = DecimalError;
 
                 fn try_from(value: $t) -> Result<Self, Self::Error> {
-                    let value_i64: i64 = value.try_into().map_err(|_| DecimalError::Overflow)?;
-                    Self::checked_from_i64(value_i64)
+                    let value_i128: i128 =
+                        value.try_into().map_err(|_| DecimalError::Overflow)?;
+                    Self::checked_from_i128(value_i128)
                 }
             }
         )+
@@ -177,3 +176,19 @@ macro_rules! impl_try_from_unsigned {
 
 impl_try_from_signed!(i8, i16, i32, i64, i128, isize);
 impl_try_from_unsigned!(u8, u16, u32, u64, u128, usize);
+
+impl<const SCALE: u32> TryFrom<Decimal<i64, SCALE>> for Decimal<i128, SCALE> {
+    type Error = DecimalError;
+
+    fn try_from(value: Decimal<i64, SCALE>) -> Result<Self, Self::Error> {
+        Decimal::<i128, SCALE>::from_i128(value.minor_units as i128)
+    }
+}
+
+impl<const SCALE: u32> TryFrom<Decimal<i128, SCALE>> for Decimal<i64, SCALE> {
+    type Error = DecimalError;
+
+    fn try_from(value: Decimal<i128, SCALE>) -> Result<Self, Self::Error> {
+        Decimal::<i64, SCALE>::from_i128(value.minor_units)
+    }
+}

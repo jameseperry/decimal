@@ -12,16 +12,24 @@ fn display_fixed_scale() {
     ];
 
     for (input, expected) in cases {
-        let value = input.parse::<Decimal<2>>().unwrap();
+        let value = input.parse::<Decimal<i64, 2>>().unwrap();
         assert_eq!(value.to_string(), expected);
     }
 }
 
 #[test]
 fn display_different_scales() {
-    let value = "123".parse::<Decimal<0>>().unwrap();
+    let value = "123".parse::<Decimal<i64, 0>>().unwrap();
     assert_eq!(value.to_string(), "123");
 
-    let value = "-.25".parse::<Decimal<3>>().unwrap();
+    let value = "-.25".parse::<Decimal<i64, 3>>().unwrap();
     assert_eq!(value.to_string(), "-0.250");
+}
+
+#[test]
+fn display_i128_backing() {
+    let value = "12345678901234567890.00"
+        .parse::<Decimal<i128, 2>>()
+        .unwrap();
+    assert_eq!(value.to_string(), "12345678901234567890.00");
 }

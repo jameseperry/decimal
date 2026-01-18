@@ -1,8 +1,8 @@
 use std::fmt;
 
-use crate::decimal::Decimal;
+use crate::decimal::{Decimal, DecimalInt};
 
-impl<const SCALE: u32> fmt::Display for Decimal<SCALE> {
+impl<T: DecimalInt + fmt::Display, const SCALE: u32> fmt::Display for Decimal<T, SCALE> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if SCALE == 0 {
             return write!(f, "{}", self.minor_units);
@@ -11,7 +11,7 @@ impl<const SCALE: u32> fmt::Display for Decimal<SCALE> {
         let decimals = SCALE as usize;
         let scale = 10_i128.pow(decimals as u32);
 
-        let minor = self.minor_units as i128;
+        let minor = self.minor_units.to_i128();
         let negative = minor < 0;
         let abs = if negative { -minor } else { minor };
         let int_part = abs / scale;

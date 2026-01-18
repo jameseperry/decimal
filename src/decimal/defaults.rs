@@ -1,13 +1,15 @@
-use crate::decimal::Decimal;
+use crate::decimal::{Decimal, DecimalInt};
 
-impl<const SCALE: u32> Decimal<SCALE> {
+impl<T: DecimalInt, const SCALE: u32> Decimal<T, SCALE> {
     pub fn zero() -> Self {
-        Self { minor_units: 0 }
+        Self {
+            minor_units: T::try_from_i128(0).unwrap_or_else(|| unreachable!()),
+        }
     }
 
     pub fn one() -> Self {
-        Self {
-            minor_units: 10_i64.pow(SCALE),
-        }
+        Self::from_i128(10_i128.pow(SCALE)).unwrap_or_else(|_| {
+            unreachable!("Decimal one() overflowed for SCALE {}", SCALE)
+        })
     }
 }

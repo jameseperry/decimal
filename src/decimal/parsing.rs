@@ -1,9 +1,9 @@
 use std::num::IntErrorKind;
 use std::str::FromStr;
 
-use crate::decimal::{Decimal, DecimalError};
+use crate::decimal::{Decimal, DecimalError, DecimalInt};
 
-impl<const SCALE: u32> FromStr for Decimal<SCALE> {
+impl<T: DecimalInt, const SCALE: u32> FromStr for Decimal<T, SCALE> {
     type Err = DecimalError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -40,18 +40,18 @@ impl<const SCALE: u32> FromStr for Decimal<SCALE> {
             });
         }
 
-        let parse_i64 = |input: &str| {
-            input.parse::<i64>().map_err(|err| match err.kind() {
+        let parse_i128 = |input: &str| {
+            input.parse::<i128>().map_err(|err| match err.kind() {
                 IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => DecimalError::Overflow,
                 _ => DecimalError::Invalid,
             })
         };
 
-        let int_val = if int_part.is_empty() { 0 } else { parse_i64(int_part)? };
-        let frac_val = if frac_part.is_empty() { 0 } else { parse_i64(frac_part)? };
+        let int_val = if int_part.is_empty() { 0 } else { parse_i128(int_part)? };
+        let frac_val = if frac_part.is_empty() { 0 } else { parse_i128(frac_part)? };
 
-        let int_scale = 10_i64.pow(SCALE);
-        let frac_scale = 10_i64.pow(SCALE - (frac_part.len() as u32));
+        let int_scale = 10_i128.pow(SCALE);
+        let frac_scale = 10_i128.pow(SCALE - (frac_part.len() as u32));
 
         let scaled_int_part = int_val
             .checked_mul(int_scale)
@@ -70,6 +70,6 @@ impl<const SCALE: u32> FromStr for Decimal<SCALE> {
         } else {
             minor
         };
-        Ok(Self { minor_units: signed })
+        Self::from_i128(signed)
     }
 }

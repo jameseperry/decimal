@@ -13,7 +13,7 @@ fn parse_valid_formats() {
     ];
 
     for (input, expected) in cases {
-        let value = input.parse::<Decimal<2>>().unwrap();
+        let value = input.parse::<Decimal<i64, 2>>().unwrap();
         assert_eq!(value.to_string(), expected);
     }
 }
@@ -34,18 +34,24 @@ fn parse_rejects_invalid_formats() {
     ];
 
     for input in cases {
-        assert!(input.parse::<Decimal<2>>().is_err(), "input {input} should fail");
+        assert!(input.parse::<Decimal<i64, 2>>().is_err(), "input {input} should fail");
     }
 }
 
 #[test]
 fn parse_rejects_too_many_fractional_digits() {
-    assert!("1.234".parse::<Decimal<2>>().is_err());
-    assert!(".001".parse::<Decimal<2>>().is_err());
+    assert!("1.234".parse::<Decimal<i64, 2>>().is_err());
+    assert!(".001".parse::<Decimal<i64, 2>>().is_err());
 }
 
 #[test]
 fn parse_rejects_overflow() {
-    assert!("92233720368547758.08".parse::<Decimal<2>>().is_err());
-    assert!("-92233720368547758.08".parse::<Decimal<2>>().is_err());
+    assert!("92233720368547758.08".parse::<Decimal<i64, 2>>().is_err());
+    assert!("-92233720368547758.09".parse::<Decimal<i64, 2>>().is_err());
+}
+
+#[test]
+fn parse_i128_backing() {
+    let value = "92233720368547758.08".parse::<Decimal<i128, 2>>().unwrap();
+    assert_eq!(value.to_string(), "92233720368547758.08");
 }

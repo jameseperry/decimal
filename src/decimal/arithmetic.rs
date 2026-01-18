@@ -1,8 +1,8 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
-use crate::decimal::{Decimal, DecimalError, RoundingMode};
+use crate::decimal::{Decimal, DecimalError, DecimalInt, RoundingMode};
 
-impl<const SCALE: u32> Add for Decimal<SCALE> {
+impl<T: DecimalInt, const SCALE: u32> Add for Decimal<T, SCALE> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
@@ -12,7 +12,7 @@ impl<const SCALE: u32> Add for Decimal<SCALE> {
     }
 }
 
-impl<const SCALE: u32> Decimal<SCALE> {
+impl<T: DecimalInt, const SCALE: u32> Decimal<T, SCALE> {
     pub fn checked_add(self, rhs: Self) -> Option<Self> {
         self.minor_units
             .checked_add(rhs.minor_units)
@@ -27,17 +27,18 @@ impl<const SCALE: u32> Decimal<SCALE> {
 
     pub fn mul_rescale<const RHS: u32, const OUT: u32>(
         self,
-        rhs: Decimal<RHS>,
+        rhs: Decimal<T, RHS>,
         mode: RoundingMode,
-    ) -> Result<Decimal<OUT>, DecimalError> {
-        let product = (self.minor_units as i128)
-            .checked_mul(rhs.minor_units as i128)
+    ) -> Result<Decimal<T, OUT>, DecimalError> {
+        let product = self
+            .minor_units
+            .to_i128()
+            .checked_mul(rhs.minor_units.to_i128())
             .ok_or(DecimalError::Overflow)?;
         let in_scale = SCALE + RHS;
 
         if OUT == in_scale {
-            let minor_units = i64::try_from(product).map_err(|_| DecimalError::Overflow)?;
-            return Ok(Decimal { minor_units });
+            return Decimal::<T, OUT>::from_i128(product);
         }
 
         if OUT > in_scale {
@@ -45,16 +46,14 @@ impl<const SCALE: u32> Decimal<SCALE> {
             let scaled = product
                 .checked_mul(factor)
                 .ok_or(DecimalError::Overflow)?;
-            let minor_units = i64::try_from(scaled).map_err(|_| DecimalError::Overflow)?;
-            return Ok(Decimal { minor_units });
+            return Decimal::<T, OUT>::from_i128(scaled);
         }
 
         let factor = 10_i128.pow(in_scale - OUT);
         let base = product / factor;
         let rem = product % factor;
         if rem == 0 {
-            let minor_units = i64::try_from(base).map_err(|_| DecimalError::Overflow)?;
-            return Ok(Decimal { minor_units });
+            return Decimal::<T, OUT>::from_i128(base);
         }
 
         let abs_rem = rem.abs();
@@ -84,13 +83,12 @@ impl<const SCALE: u32> Decimal<SCALE> {
             base
         };
 
-        let minor_units = i64::try_from(rounded).map_err(|_| DecimalError::Overflow)?;
-        Ok(Decimal { minor_units })
+        Decimal::<T, OUT>::from_i128(rounded)
     }
 
     pub fn mul<const RATE: u32>(
         self,
-        rate: Decimal<RATE>,
+        rate: Decimal<T, RATE>,
         mode: RoundingMode,
     ) -> Result<Self, DecimalError> {
         self.mul_rescale::<RATE, SCALE>(rate, mode)
@@ -98,27 +96,30 @@ impl<const SCALE: u32> Decimal<SCALE> {
 
     pub fn div_rescale<const RHS: u32, const OUT: u32>(
         self,
-        rhs: Decimal<RHS>,
+        rhs: Decimal<T, RHS>,
         mode: RoundingMode,
-    ) -> Result<Decimal<OUT>, DecimalError> {
-        if rhs.minor_units == 0 {
+    ) -> Result<Decimal<T, OUT>, DecimalError> {
+        if rhs.minor_units.to_i128() == 0 {
             return Err(DecimalError::DivisionByZero);
         }
 
         let numer_factor = 10_i128.pow(RHS + OUT);
         let denom_factor = 10_i128.pow(SCALE);
-        let numerator = (self.minor_units as i128)
+        let numerator = self
+            .minor_units
+            .to_i128()
             .checked_mul(numer_factor)
             .ok_or(DecimalError::Overflow)?;
-        let denominator = (rhs.minor_units as i128)
+        let denominator = rhs
+            .minor_units
+            .to_i128()
             .checked_mul(denom_factor)
             .ok_or(DecimalError::Overflow)?;
 
         let base = numerator / denominator;
         let rem = numerator % denominator;
         if rem == 0 {
-            let minor_units = i64::try_from(base).map_err(|_| DecimalError::Overflow)?;
-            return Ok(Decimal { minor_units });
+            return Decimal::<T, OUT>::from_i128(base);
         }
 
         let abs_rem = rem.abs();
@@ -148,20 +149,19 @@ impl<const SCALE: u32> Decimal<SCALE> {
             base
         };
 
-        let minor_units = i64::try_from(rounded).map_err(|_| DecimalError::Overflow)?;
-        Ok(Decimal { minor_units })
+        Decimal::<T, OUT>::from_i128(rounded)
     }
 
     pub fn div<const RATE: u32>(
         self,
-        rate: Decimal<RATE>,
+        rate: Decimal<T, RATE>,
         mode: RoundingMode,
     ) -> Result<Self, DecimalError> {
         self.div_rescale::<RATE, SCALE>(rate, mode)
     }
 }
 
-impl<const SCALE: u32> Sub for Decimal<SCALE> {
+impl<T: DecimalInt, const SCALE: u32> Sub for Decimal<T, SCALE> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self {
@@ -171,13 +171,13 @@ impl<const SCALE: u32> Sub for Decimal<SCALE> {
     }
 }
 
-impl<const SCALE: u32> AddAssign for Decimal<SCALE> {
+impl<T: DecimalInt, const SCALE: u32> AddAssign for Decimal<T, SCALE> {
     fn add_assign(&mut self, rhs: Self) {
         self.minor_units += rhs.minor_units;
     }
 }
 
-impl<const SCALE: u32> SubAssign for Decimal<SCALE> {
+impl<T: DecimalInt, const SCALE: u32> SubAssign for Decimal<T, SCALE> {
     fn sub_assign(&mut self, rhs: Self) {
         self.minor_units -= rhs.minor_units;
     }
