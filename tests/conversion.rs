@@ -24,7 +24,7 @@ fn convert_from_i128_backing() {
 #[test]
 fn convert_between_backing_types() {
     let value_i64 = "123.45".parse::<Decimal<i64, 2>>().unwrap();
-    let value_i128 = Decimal::<i128, 2>::try_from(value_i64).unwrap();
+    let value_i128 = Decimal::<i128, 2>::from(value_i64);
     assert_eq!(value_i128.to_string(), "123.45");
 
     let back = Decimal::<i64, 2>::try_from(value_i128).unwrap();

@@ -177,11 +177,11 @@ macro_rules! impl_try_from_unsigned {
 impl_try_from_signed!(i8, i16, i32, i64, i128, isize);
 impl_try_from_unsigned!(u8, u16, u32, u64, u128, usize);
 
-impl<const SCALE: u32> TryFrom<Decimal<i64, SCALE>> for Decimal<i128, SCALE> {
-    type Error = DecimalError;
-
-    fn try_from(value: Decimal<i64, SCALE>) -> Result<Self, Self::Error> {
-        Decimal::<i128, SCALE>::from_i128(value.minor_units as i128)
+impl<const SCALE: u32> From<Decimal<i64, SCALE>> for Decimal<i128, SCALE> {
+    fn from(value: Decimal<i64, SCALE>) -> Self {
+        Decimal {
+            minor_units: value.minor_units as i128,
+        }
     }
 }
 
