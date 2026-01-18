@@ -38,7 +38,7 @@ fn multiply_exact_scale() {
     let amount = "10.00".parse::<Decimal<2>>().unwrap();
     let rate = "0.0125".parse::<Decimal<4>>().unwrap();
     let value = amount
-        .mul::<4, 6>(rate, RoundingMode::Truncate)
+        .mul_rescale::<4, 6>(rate, RoundingMode::Truncate)
         .unwrap();
     assert_eq!(value.to_string(), "0.125000");
 }
@@ -49,17 +49,17 @@ fn multiply_rounding_modes() {
     let rate = "0.0125".parse::<Decimal<4>>().unwrap();
 
     let truncate = amount
-        .mul::<4, 2>(rate, RoundingMode::Truncate)
+        .mul_rescale::<4, 2>(rate, RoundingMode::Truncate)
         .unwrap();
     assert_eq!(truncate.to_string(), "0.12");
 
     let half_up = amount
-        .mul::<4, 2>(rate, RoundingMode::HalfUp)
+        .mul_rescale::<4, 2>(rate, RoundingMode::HalfUp)
         .unwrap();
     assert_eq!(half_up.to_string(), "0.13");
 
     let half_even = amount
-        .mul::<4, 2>(rate, RoundingMode::HalfEven)
+        .mul_rescale::<4, 2>(rate, RoundingMode::HalfEven)
         .unwrap();
     assert_eq!(half_even.to_string(), "0.12");
 }
@@ -68,7 +68,7 @@ fn multiply_rounding_modes() {
 fn multiply_rate_helper() {
     let amount = "10.00".parse::<Decimal<2>>().unwrap();
     let rate = "0.0125".parse::<Decimal<4>>().unwrap();
-    let value = amount.mul_rate::<4>(rate, RoundingMode::HalfUp).unwrap();
+    let value = amount.mul::<4>(rate, RoundingMode::HalfUp).unwrap();
     assert_eq!(value.to_string(), "0.13");
 }
 
@@ -77,7 +77,7 @@ fn divide_exact_scale() {
     let amount = "10.00".parse::<Decimal<2>>().unwrap();
     let rate = "4.0000".parse::<Decimal<4>>().unwrap();
     let value = amount
-        .div::<4, 6>(rate, RoundingMode::Truncate)
+        .div_rescale::<4, 6>(rate, RoundingMode::Truncate)
         .unwrap();
     assert_eq!(value.to_string(), "2.500000");
 }
@@ -88,15 +88,17 @@ fn divide_rounding_modes() {
     let rate = "8.0000".parse::<Decimal<4>>().unwrap();
 
     let truncate = amount
-        .div::<4, 2>(rate, RoundingMode::Truncate)
+        .div_rescale::<4, 2>(rate, RoundingMode::Truncate)
         .unwrap();
     assert_eq!(truncate.to_string(), "0.12");
 
-    let half_up = amount.div::<4, 2>(rate, RoundingMode::HalfUp).unwrap();
+    let half_up = amount
+        .div_rescale::<4, 2>(rate, RoundingMode::HalfUp)
+        .unwrap();
     assert_eq!(half_up.to_string(), "0.13");
 
     let half_even = amount
-        .div::<4, 2>(rate, RoundingMode::HalfEven)
+        .div_rescale::<4, 2>(rate, RoundingMode::HalfEven)
         .unwrap();
     assert_eq!(half_even.to_string(), "0.12");
 }
@@ -106,7 +108,7 @@ fn divide_by_zero() {
     let amount = "10.00".parse::<Decimal<2>>().unwrap();
     let zero = "0.0000".parse::<Decimal<4>>().unwrap();
     let err = amount
-        .div::<4, 2>(zero, RoundingMode::Truncate)
+        .div_rescale::<4, 2>(zero, RoundingMode::Truncate)
         .unwrap_err();
     assert_eq!(err, DecimalError::DivisionByZero);
 }
@@ -115,7 +117,7 @@ fn divide_by_zero() {
 fn divide_rate_helper() {
     let amount = "10.00".parse::<Decimal<2>>().unwrap();
     let rate = "4.0000".parse::<Decimal<4>>().unwrap();
-    let value = amount.div_rate::<4>(rate, RoundingMode::HalfUp).unwrap();
+    let value = amount.div::<4>(rate, RoundingMode::HalfUp).unwrap();
     assert_eq!(value.to_string(), "2.50");
 }
 
@@ -123,7 +125,9 @@ fn divide_rate_helper() {
 fn divide_exact_integer_result() {
     let amount = "12.00".parse::<Decimal<2>>().unwrap();
     let rate = "3.0000".parse::<Decimal<4>>().unwrap();
-    let value = amount.div::<4, 2>(rate, RoundingMode::HalfEven).unwrap();
+    let value = amount
+        .div_rescale::<4, 2>(rate, RoundingMode::HalfEven)
+        .unwrap();
     assert_eq!(value.to_string(), "4.00");
 }
 
@@ -131,11 +135,13 @@ fn divide_exact_integer_result() {
 fn divide_rounding_negative() {
     let amount = "-1.00".parse::<Decimal<2>>().unwrap();
     let rate = "8.0000".parse::<Decimal<4>>().unwrap();
-    let half_up = amount.div::<4, 2>(rate, RoundingMode::HalfUp).unwrap();
+    let half_up = amount
+        .div_rescale::<4, 2>(rate, RoundingMode::HalfUp)
+        .unwrap();
     assert_eq!(half_up.to_string(), "-0.13");
 
     let half_even = amount
-        .div::<4, 2>(rate, RoundingMode::HalfEven)
+        .div_rescale::<4, 2>(rate, RoundingMode::HalfEven)
         .unwrap();
     assert_eq!(half_even.to_string(), "-0.12");
 }
@@ -146,15 +152,17 @@ fn divide_negative_rounding_modes() {
     let rate = "8.0000".parse::<Decimal<4>>().unwrap();
 
     let truncate = amount
-        .div::<4, 2>(rate, RoundingMode::Truncate)
+        .div_rescale::<4, 2>(rate, RoundingMode::Truncate)
         .unwrap();
     assert_eq!(truncate.to_string(), "-0.12");
 
-    let half_up = amount.div::<4, 2>(rate, RoundingMode::HalfUp).unwrap();
+    let half_up = amount
+        .div_rescale::<4, 2>(rate, RoundingMode::HalfUp)
+        .unwrap();
     assert_eq!(half_up.to_string(), "-0.13");
 
     let half_even = amount
-        .div::<4, 2>(rate, RoundingMode::HalfEven)
+        .div_rescale::<4, 2>(rate, RoundingMode::HalfEven)
         .unwrap();
     assert_eq!(half_even.to_string(), "-0.12");
 }
@@ -163,7 +171,9 @@ fn divide_negative_rounding_modes() {
 fn divide_scale_up() {
     let amount = "1.00".parse::<Decimal<2>>().unwrap();
     let rate = "8.0000".parse::<Decimal<4>>().unwrap();
-    let value = amount.div::<4, 6>(rate, RoundingMode::HalfUp).unwrap();
+    let value = amount
+        .div_rescale::<4, 6>(rate, RoundingMode::HalfUp)
+        .unwrap();
     assert_eq!(value.to_string(), "0.125000");
 }
 
@@ -171,6 +181,8 @@ fn divide_scale_up() {
 fn divide_half_even_tie() {
     let amount = "1.00".parse::<Decimal<2>>().unwrap();
     let rate = "8.0000".parse::<Decimal<4>>().unwrap();
-    let value = amount.div::<4, 2>(rate, RoundingMode::HalfEven).unwrap();
+    let value = amount
+        .div_rescale::<4, 2>(rate, RoundingMode::HalfEven)
+        .unwrap();
     assert_eq!(value.to_string(), "0.12");
 }

@@ -25,7 +25,7 @@ impl<const SCALE: u32> Decimal<SCALE> {
             .map(|minor_units| Self { minor_units })
     }
 
-    pub fn mul<const RHS: u32, const OUT: u32>(
+    pub fn mul_rescale<const RHS: u32, const OUT: u32>(
         self,
         rhs: Decimal<RHS>,
         mode: RoundingMode,
@@ -88,15 +88,15 @@ impl<const SCALE: u32> Decimal<SCALE> {
         Ok(Decimal { minor_units })
     }
 
-    pub fn mul_rate<const RATE: u32>(
+    pub fn mul<const RATE: u32>(
         self,
         rate: Decimal<RATE>,
         mode: RoundingMode,
     ) -> Result<Self, DecimalError> {
-        self.mul::<RATE, SCALE>(rate, mode)
+        self.mul_rescale::<RATE, SCALE>(rate, mode)
     }
 
-    pub fn div<const RHS: u32, const OUT: u32>(
+    pub fn div_rescale<const RHS: u32, const OUT: u32>(
         self,
         rhs: Decimal<RHS>,
         mode: RoundingMode,
@@ -152,12 +152,12 @@ impl<const SCALE: u32> Decimal<SCALE> {
         Ok(Decimal { minor_units })
     }
 
-    pub fn div_rate<const RATE: u32>(
+    pub fn div<const RATE: u32>(
         self,
         rate: Decimal<RATE>,
         mode: RoundingMode,
     ) -> Result<Self, DecimalError> {
-        self.div::<RATE, SCALE>(rate, mode)
+        self.div_rescale::<RATE, SCALE>(rate, mode)
     }
 }
 
