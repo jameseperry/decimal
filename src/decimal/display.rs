@@ -2,6 +2,7 @@ use std::fmt;
 
 use crate::decimal::{Decimal, DecimalInt};
 
+/// Format as a fixed-scale decimal string.
 impl<T: DecimalInt + fmt::Display, const SCALE: u32> fmt::Display for Decimal<T, SCALE> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if SCALE == 0 {

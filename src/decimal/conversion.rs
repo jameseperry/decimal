@@ -1,5 +1,6 @@
 use crate::decimal::{Decimal, DecimalError, DecimalInt};
 
+/// Rounding modes for rescale and conversion operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RoundingMode {
     Truncate,
@@ -8,11 +9,13 @@ pub enum RoundingMode {
 }
 
 impl<T: DecimalInt, const SCALE: u32> Decimal<T, SCALE> {
+    /// Convert to `f64` by dividing by `10^SCALE`.
     pub fn to_f64(self) -> f64 {
         let scale = 10_f64.powi(SCALE as i32);
         (self.minor_units.to_i128() as f64) / scale
     }
 
+    /// Convert from `f64` using the provided rounding mode.
     pub fn from_f64(value: f64, mode: RoundingMode) -> Result<Self, DecimalError> {
         if !value.is_finite() {
             return Err(DecimalError::Invalid);
@@ -57,6 +60,7 @@ impl<T: DecimalInt, const SCALE: u32> Decimal<T, SCALE> {
 }
 
 impl<T: DecimalInt, const FROM: u32> Decimal<T, FROM> {
+    /// Rescale exactly; fails if precision would be lost.
     pub fn try_rescale<const TO: u32>(self) -> Result<Decimal<T, TO>, DecimalError> {
         if FROM == TO {
             return Ok(Decimal {
@@ -82,6 +86,7 @@ impl<T: DecimalInt, const FROM: u32> Decimal<T, FROM> {
         Decimal::<T, TO>::from_i128(minor_units / factor)
     }
 
+    /// Rescale with rounding according to the provided mode.
     pub fn rescale<const TO: u32>(
         self,
         mode: RoundingMode,

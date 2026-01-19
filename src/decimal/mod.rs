@@ -1,3 +1,5 @@
+//! Core decimal type and shared traits.
+
 mod conversion;
 mod error;
 mod arithmetic;
@@ -8,6 +10,7 @@ mod defaults;
 #[allow(dead_code)]
 const MAX_SCALE: u32 = 18;
 
+/// Backing integer behavior required by `Decimal`.
 pub trait DecimalInt:
     Copy
     + Eq
@@ -59,6 +62,9 @@ impl DecimalInt for i128 {
     }
 }
 
+/// Fixed-scale decimal with backing integer `T`.
+///
+/// The stored integer represents `value / 10^SCALE`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Decimal<T, const SCALE: u32> {
     minor_units: T,
@@ -67,6 +73,7 @@ pub struct Decimal<T, const SCALE: u32> {
 impl<T: DecimalInt, const SCALE: u32> Decimal<T, SCALE> {
     const _ASSERT_SCALE: () = assert!(SCALE <= MAX_SCALE);
 
+    /// Construct from an integer value before scaling, returning overflow errors.
     pub(crate) fn checked_from_i128(value: i128) -> Result<Self, DecimalError> {
         let scale = 10_i128.pow(SCALE);
         let minor_units = value
@@ -75,11 +82,14 @@ impl<T: DecimalInt, const SCALE: u32> Decimal<T, SCALE> {
         Self::from_i128(minor_units)
     }
 
+    /// Construct directly from a scaled integer value.
     pub(crate) fn from_i128(value: i128) -> Result<Self, DecimalError> {
         let minor_units = T::try_from_i128(value).ok_or(DecimalError::Overflow)?;
         Ok(Self { minor_units })
     }
 }
 
+/// Errors produced by parsing and arithmetic operations.
 pub use self::error::DecimalError;
+/// Rounding modes for scale-changing operations.
 pub use self::conversion::RoundingMode;

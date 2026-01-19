@@ -1,5 +1,6 @@
 use std::fmt;
 
+/// Error type for parsing and arithmetic operations.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DecimalError {
     Empty,

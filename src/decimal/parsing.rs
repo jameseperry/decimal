@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use crate::decimal::{Decimal, DecimalError, DecimalInt};
 
+/// Parse a decimal string into a fixed-scale value.
 impl<T: DecimalInt, const SCALE: u32> FromStr for Decimal<T, SCALE> {
     type Err = DecimalError;
 

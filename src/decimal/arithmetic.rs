@@ -13,22 +13,34 @@ impl<T: DecimalInt, const SCALE: u32> Add for Decimal<T, SCALE> {
 }
 
 impl<T: DecimalInt, const SCALE: u32> Decimal<T, SCALE> {
+    /// Checked addition; returns `None` on overflow.
     pub fn checked_add(self, rhs: Self) -> Option<Self> {
         self.minor_units
             .checked_add(rhs.minor_units)
             .map(|minor_units| Self { minor_units })
     }
 
+    /// Checked subtraction; returns `None` on overflow.
     pub fn checked_sub(self, rhs: Self) -> Option<Self> {
         self.minor_units
             .checked_sub(rhs.minor_units)
             .map(|minor_units| Self { minor_units })
     }
 
+    /// Check whether this value is zero.
     pub fn is_zero(&self) -> bool {
         self.minor_units == T::try_from_i128(0).unwrap_or_else(|| unreachable!())
     }
 
+    pub fn is_negative(&self) -> bool {
+        self.minor_units < T::try_from_i128(0).unwrap_or_else(|| unreachable!())
+    }
+
+    pub fn is_positive(&self) -> bool {
+        self.minor_units >= T::try_from_i128(0).unwrap_or_else(|| unreachable!())
+    }
+
+    /// Multiply and rescale to the output scale with rounding.
     pub fn mul_rescale<const RHS: u32, const OUT: u32>(
         self,
         rhs: Decimal<T, RHS>,
@@ -90,6 +102,7 @@ impl<T: DecimalInt, const SCALE: u32> Decimal<T, SCALE> {
         Decimal::<T, OUT>::from_i128(rounded)
     }
 
+    /// Multiply by a rate and keep the current scale.
     pub fn mul<const RATE: u32>(
         self,
         rate: Decimal<T, RATE>,
@@ -98,6 +111,7 @@ impl<T: DecimalInt, const SCALE: u32> Decimal<T, SCALE> {
         self.mul_rescale::<RATE, SCALE>(rate, mode)
     }
 
+    /// Divide and rescale to the output scale with rounding.
     pub fn div_rescale<const RHS: u32, const OUT: u32>(
         self,
         rhs: Decimal<T, RHS>,
@@ -156,6 +170,7 @@ impl<T: DecimalInt, const SCALE: u32> Decimal<T, SCALE> {
         Decimal::<T, OUT>::from_i128(rounded)
     }
 
+    /// Divide by a rate and keep the current scale.
     pub fn div<const RATE: u32>(
         self,
         rate: Decimal<T, RATE>,
