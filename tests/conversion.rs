@@ -145,3 +145,25 @@ fn convert_from_f64_overflow() {
     let err = Decimal::<i64, 2>::from_f64(1e30, RoundingMode::HalfUp).unwrap_err();
     assert_eq!(err, DecimalError::Overflow);
 }
+
+#[test]
+fn round_without_rescale() {
+    let value = "1.2345".parse::<Decimal<i64, 4>>().unwrap();
+    let rounded = value.round(2, RoundingMode::HalfUp).unwrap();
+    assert_eq!(rounded.to_string(), "1.2300");
+
+    let value = "-1.2350".parse::<Decimal<i64, 4>>().unwrap();
+    let rounded = value.round(2, RoundingMode::HalfUp).unwrap();
+    assert_eq!(rounded.to_string(), "-1.2400");
+
+    let value = "1.2350".parse::<Decimal<i64, 4>>().unwrap();
+    let rounded = value.round(2, RoundingMode::HalfEven).unwrap();
+    assert_eq!(rounded.to_string(), "1.2400");
+}
+
+#[test]
+fn round_noop_when_scale_higher() {
+    let value = "1.23".parse::<Decimal<i64, 2>>().unwrap();
+    let rounded = value.round(4, RoundingMode::HalfUp).unwrap();
+    assert_eq!(rounded.to_string(), "1.23");
+}

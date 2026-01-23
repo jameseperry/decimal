@@ -57,6 +57,63 @@ impl<T: DecimalInt, const SCALE: u32> Decimal<T, SCALE> {
         };
         Self::from_i128(signed)
     }
+
+    /// Round to the given number of decimal places without changing scale.
+    pub fn round(self, decimals: u32, mode: RoundingMode) -> Result<Self, DecimalError> {
+        if decimals >= SCALE {
+            return Ok(self);
+        }
+
+        let factor = 10_i128.pow(SCALE - decimals);
+        let minor_units = self.minor_units.to_i128();
+        let rounded = round_quotient(minor_units, factor, mode)?;
+        let scaled = rounded
+            .checked_mul(factor)
+            .ok_or(DecimalError::Overflow)?;
+        Self::from_i128(scaled)
+    }
+}
+
+fn round_quotient(
+    minor_units: i128,
+    factor: i128,
+    mode: RoundingMode,
+) -> Result<i128, DecimalError> {
+    let base = minor_units / factor;
+    let rem = minor_units % factor;
+    if rem == 0 {
+        return Ok(base);
+    }
+
+    let abs_rem = rem.abs();
+    let abs_factor = factor.abs();
+    let should_round = match mode {
+        RoundingMode::Truncate => false,
+        RoundingMode::HalfUp => abs_rem * 2 >= abs_factor,
+        RoundingMode::HalfEven => {
+            let twice = abs_rem * 2;
+            if twice > abs_factor {
+                true
+            } else if twice < abs_factor {
+                false
+            } else {
+                base % 2 != 0
+            }
+        }
+    };
+
+    if !should_round {
+        return Ok(base);
+    }
+
+    let adjusted = if minor_units.is_negative() {
+        base.checked_sub(1)
+    } else {
+        base.checked_add(1)
+    }
+    .ok_or(DecimalError::Overflow)?;
+
+    Ok(adjusted)
 }
 
 impl<T: DecimalInt, const FROM: u32> Decimal<T, FROM> {
@@ -109,41 +166,8 @@ impl<T: DecimalInt, const FROM: u32> Decimal<T, FROM> {
 
         let factor = 10_i128.pow(FROM - TO);
         let minor_units = self.minor_units.to_i128();
-        let base = minor_units / factor;
-        let rem = minor_units % factor;
-        if rem == 0 {
-            return Decimal::<T, TO>::from_i128(base);
-        }
-
-        let abs_rem = rem.abs();
-        let abs_factor = factor.abs();
-        let should_round = match mode {
-            RoundingMode::Truncate => false,
-            RoundingMode::HalfUp => abs_rem * 2 >= abs_factor,
-            RoundingMode::HalfEven => {
-                let twice = abs_rem * 2;
-                if twice > abs_factor {
-                    true
-                } else if twice < abs_factor {
-                    false
-                } else {
-                    base % 2 != 0
-                }
-            }
-        };
-
-        if !should_round {
-            return Decimal::<T, TO>::from_i128(base);
-        }
-
-        let adjusted = if minor_units.is_negative() {
-            base.checked_sub(1)
-        } else {
-            base.checked_add(1)
-        }
-        .ok_or(DecimalError::Overflow)?;
-
-        Decimal::<T, TO>::from_i128(adjusted)
+        let rounded = round_quotient(minor_units, factor, mode)?;
+        Decimal::<T, TO>::from_i128(rounded)
     }
 }
 
